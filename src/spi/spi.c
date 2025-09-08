@@ -79,7 +79,7 @@ void spi_deselect(void)
 
 // configures spi mode based on user's cfg
 // returns 0 for successful or non-zero on failure
-uint8_t spi_init(struct spi_config_s *cfg)
+uint8_t spi_init(struct spi_cfg_s *cfg)
 {
 	uint8_t div_idx, res;
 	if (!cfg)

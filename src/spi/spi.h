@@ -33,16 +33,23 @@
 #define SPI_MODE_2 (2)
 #define SPI_MODE_3 (3)
 
-struct spi_config_s {
+// struct to configure spi
+struct spi_cfg_s {
+	// freq division value
 	uint8_t sck_div;
+	// should the spi device be a master
 	uint8_t master;
+	// enable interrupts?
 	uint8_t spie;
+	// set mode
 	uint8_t mode;
+	// set 2x mode
 	uint8_t speed_mode;
+	// set data order (lsb or msb)
 	uint8_t lsb;
 };
 
-uint8_t spi_init(struct spi_config_s *config);
+uint8_t spi_init(struct spi_cfg_s *config);
 uint8_t spi_tx(uint8_t data);
 void spi_send(uint8_t data);
 void spi_deselect(void);
