@@ -1,4 +1,8 @@
+main.c
 build/*
 lib/*
 .clang/*
 *.json
+src/spi/.cache/*
+src/i2c/.cache/*
+src/uart/.cache/*
