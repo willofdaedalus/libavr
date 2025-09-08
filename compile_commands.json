@@ -1,0 +1,58 @@
+[
+  {
+    "arguments": [
+      "/usr/bin/avr-gcc",
+      "-mmcu=atmega32u4",
+      "-DF_CPU=16000000UL",
+      "-Os",
+      "-Wall",
+      "-Wextra",
+      "-std=c99",
+      "-funsigned-char",
+      "-funsigned-bitfields",
+      "-fpack-struct",
+      "-fshort-enums",
+      "-ffunction-sections",
+      "-fdata-sections",
+      "-Isrc/spi",
+      "-Isrc/uart",
+      "-Isrc/i2c",
+      "-DAVR_UART_LIBRARY",
+      "-c",
+      "-o",
+      "build/uart/uart.o",
+      "src/uart/uart.c"
+    ],
+    "directory": "/home/equansah/projects/c/work/libavr",
+    "file": "/home/equansah/projects/c/work/libavr/src/uart/uart.c",
+    "output": "/home/equansah/projects/c/work/libavr/build/uart/uart.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/avr-gcc",
+      "-mmcu=atmega32u4",
+      "-DF_CPU=16000000UL",
+      "-Os",
+      "-Wall",
+      "-Wextra",
+      "-std=c99",
+      "-funsigned-char",
+      "-funsigned-bitfields",
+      "-fpack-struct",
+      "-fshort-enums",
+      "-ffunction-sections",
+      "-fdata-sections",
+      "-Isrc/spi",
+      "-Isrc/uart",
+      "-Isrc/i2c",
+      "-DAVR_I2C_LIBRARY",
+      "-c",
+      "-o",
+      "build/i2c/i2c.o",
+      "src/i2c/i2c.c"
+    ],
+    "directory": "/home/equansah/projects/c/work/libavr",
+    "file": "/home/equansah/projects/c/work/libavr/src/i2c/i2c.c",
+    "output": "/home/equansah/projects/c/work/libavr/build/i2c/i2c.o"
+  }
+]
