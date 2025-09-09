@@ -4,9 +4,9 @@
 #include <stdint.h>
 
 #define SPI_SS (PB0)
-#define SPI_MISO (PB1)
+#define SPI_SCK (PB1)
 #define SPI_MOSI (PB2)
-#define SPI_SCK (PB3)
+#define SPI_MISO (PB3)
 
 #define SPR0_BIT (1 << SPR0)
 #define SPR1_BIT (1 << SPR1)
@@ -25,8 +25,12 @@
 
 #define SPI_OK (0)
 
+#define MODE_COUNT (4)
+#define DIVS_COUNT (4)
+
 #define SPI_ERR_SPEED_MISMATCH (0x01)
 #define SPI_ERR_INVALID_MODE (0x02)
+#define SPI_ERR_NULL_CONFIG (0x03)
 
 #define SPI_MODE_0 (0)
 #define SPI_MODE_1 (1)
