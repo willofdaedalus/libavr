@@ -4,14 +4,16 @@
 // instead of building SPCR bits at runtime, we precompute
 // divider/mode combinations in spcr_table[] for speed and clarity.
 // MSTR, DORD, and SPI2X are applied separately.
-
 // each entry is structured like so
 // {mode 0, mode 1, mode 2, mode 3}
-// this is basically a look up table of table 17-5 in the atmega32u4 datasheet
-static const uint8_t spcr_table[4][4] = {
+// the spr0 and spr1 bits are OR'd based on the divisions
+// for instance regardless of speed, both div4 and div2 i.e fosc/4 and fosc/2
+// keep both SPR0 and SPR1 off while again regardless of speed both div16 and
+// div8 keep SPR0 on and keep SPR1 off this is basically a look up table of
+// table 17-5 in the atmega32u4 datasheet
+static const uint8_t spcr_table[DIVS_COUNT][MODE_COUNT] = {
 	// div4 and div2
 	{0, CPHA_BIT, CPOL_BIT, CPOL_CPHA},
-
 
 	// div16 and div8
 	{SPR0_BIT,
@@ -33,8 +35,8 @@ static const uint8_t spcr_table[4][4] = {
 };
 
 // ensures the speeds match their clock divisions
-// returns -1 on mismatch or 0 on legal match
-uint8_t validate_matches(uint8_t speed, uint8_t sck_div)
+// returns  on mismatch or 0 on legal match
+uint8_t check_sck(uint8_t speed, uint8_t sck_div)
 {
 	// note; div64 is in both so that we don't trigger on a false "negative"
 	if (speed) {
@@ -45,8 +47,9 @@ uint8_t validate_matches(uint8_t speed, uint8_t sck_div)
 		case SPI_SCK_DIV32:
 		case SPI_SCK_DIV64:
 			break; // valid combinations
+
 		default:
-			return -SPI_ERR_SPEED_MISMATCH;
+			return SPI_ERR_SPEED_MISMATCH;
 		}
 	} else {
 		// normal mode only supports: div4, div16, div64, div128
@@ -56,8 +59,9 @@ uint8_t validate_matches(uint8_t speed, uint8_t sck_div)
 		case SPI_SCK_DIV64:
 		case SPI_SCK_DIV128:
 			break; // valid combinations
+
 		default:
-			return -SPI_ERR_SPEED_MISMATCH;
+			return SPI_ERR_SPEED_MISMATCH;
 		}
 	}
 
@@ -84,13 +88,15 @@ uint8_t spi_init(struct spi_cfg_s *cfg)
 {
 	uint8_t div_idx, res;
 	if (!cfg)
-		return -1;
+		return SPI_ERR_NULL_CONFIG;
 
 	if (cfg->mode > 3)
-		return -SPI_ERR_INVALID_MODE;
+		return SPI_ERR_INVALID_MODE;
 
-	if ((res = validate_matches(cfg->speed_mode, cfg->sck_div)) != SPI_OK)
+	if ((res = check_sck(cfg->speed_mode, cfg->sck_div)) != SPI_OK) {
+		SPCR = 0x0;
 		return res;
+	}
 
 	switch (cfg->sck_div) {
 	case SPI_SCK_DIV2:
@@ -108,16 +114,22 @@ uint8_t spi_init(struct spi_cfg_s *cfg)
 		break;
 
 	case SPI_SCK_DIV64:
+		// this is separate for future reference but regardless of 2x
+		// mode, both div64 are the same; they both set the frequency to
+		// 250kHz
 		div_idx = 3;
 		break;
 
 	case SPI_SCK_DIV128:
 		div_idx = 3;
 		break;
+
 	default:
-		return -SPI_ERR_SPEED_MISMATCH;
+		SPCR = 0x0;
+		return SPI_ERR_SPEED_MISMATCH;
 	}
 
+	// assign SPCR to one of the values
 	SPCR = spcr_table[div_idx][cfg->mode];
 
 	if (cfg->speed_mode)
@@ -139,6 +151,7 @@ uint8_t spi_init(struct spi_cfg_s *cfg)
 	if (cfg->spie)
 		SPCR |= _BV(SPIE);
 
+	// enable spi mode
 	SPCR |= _BV(SPE);
 
 	return SPI_OK;
