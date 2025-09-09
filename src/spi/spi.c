@@ -10,25 +10,26 @@
 // this is basically a look up table of table 17-5 in the atmega32u4 datasheet
 static const uint8_t spcr_table[4][4] = {
 	// div4 and div2
-	{0, CPOL_BIT, CPHA_BIT, CPOL_CPHA},
+	{0, CPHA_BIT, CPOL_BIT, CPOL_CPHA},
+
 
 	// div16 and div8
 	{SPR0_BIT,
-	 SPR0_BIT | CPOL_BIT,
 	 SPR0_BIT | CPHA_BIT,
+	 SPR0_BIT | CPOL_BIT,
 	 SPR0_BIT | CPOL_CPHA},
 
 	// div32 and div64 (normal)
 	{SPR1_BIT,
-	 SPR1_BIT | CPOL_BIT,
 	 SPR1_BIT | CPHA_BIT,
-	 SPR1_BIT | CPOL_BIT | CPHA_BIT},
+	 SPR1_BIT | CPOL_BIT,
+	 SPR1_BIT | CPOL_CPHA},
 
 	// div128 and div64 (fast version)
 	{SPR0_SPR1,
-	 SPR0_SPR1 | CPOL_BIT,
 	 SPR0_SPR1 | CPHA_BIT,
-	 SPR0_SPR1 | CPHA_BIT | CPOL_BIT},
+	 SPR0_SPR1 | CPOL_BIT,
+	 SPR0_SPR1 | CPOL_CPHA},
 };
 
 // ensures the speeds match their clock divisions
@@ -123,8 +124,10 @@ uint8_t spi_init(struct spi_cfg_s *cfg)
 		SPSR = _BV(SPI2X);
 
 	if (cfg->master) {
+		// set all lines except MISO as output
 		DDRB |= _BV(SPI_MOSI) | _BV(SPI_SCK) | _BV(SPI_SS);
 		PORTB |= _BV(SPI_SS);
+		// configure master mode
 		SPCR |= _BV(MSTR);
 	} else {
 		DDRB |= _BV(SPI_MISO);
