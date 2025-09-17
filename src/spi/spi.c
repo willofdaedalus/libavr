@@ -1,158 +1,95 @@
 #include "spi.h"
-#include <avr/io.h>
-
-// instead of building SPCR bits at runtime, we precompute
-// divider/mode combinations in spcr_table[] for speed and clarity.
-// MSTR, DORD, and SPI2X are applied separately.
-// each entry is structured like so
-// {mode 0, mode 1, mode 2, mode 3}
-// the spr0 and spr1 bits are OR'd based on the divisions
-// for instance regardless of speed, both div4 and div2 i.e fosc/4 and fosc/2
-// keep both SPR0 and SPR1 off while again regardless of speed both div16 and
-// div8 keep SPR0 on and keep SPR1 off this is basically a look up table of
-// table 17-5 in the atmega32u4 datasheet
-static const uint8_t spcr_table[DIVS_COUNT][MODE_COUNT] = {
-	// div4 and div2
-	{0, CPHA_BIT, CPOL_BIT, CPOL_CPHA},
-
-	// div16 and div8
-	{SPR0_BIT,
-	 SPR0_BIT | CPHA_BIT,
-	 SPR0_BIT | CPOL_BIT,
-	 SPR0_BIT | CPOL_CPHA},
-
-	// div32 and div64 (normal)
-	{SPR1_BIT,
-	 SPR1_BIT | CPHA_BIT,
-	 SPR1_BIT | CPOL_BIT,
-	 SPR1_BIT | CPOL_CPHA},
-
-	// div128 and div64 (fast version)
-	{SPR0_SPR1,
-	 SPR0_SPR1 | CPHA_BIT,
-	 SPR0_SPR1 | CPOL_BIT,
-	 SPR0_SPR1 | CPOL_CPHA},
-};
-
-// ensures the speeds match their clock divisions
-// returns  on mismatch or 0 on legal match
-uint8_t check_sck(uint8_t speed, uint8_t sck_div)
-{
-	// note; div64 is in both so that we don't trigger on a false "negative"
-	if (speed) {
-		// 2x mode only supports: div2, div8, div32, div64
-		switch (sck_div) {
-		case SPI_SCK_DIV2:
-		case SPI_SCK_DIV8:
-		case SPI_SCK_DIV32:
-		case SPI_SCK_DIV64:
-			break; // valid combinations
-
-		default:
-			return SPI_ERR_SPEED_MISMATCH;
-		}
-	} else {
-		// normal mode only supports: div4, div16, div64, div128
-		switch (sck_div) {
-		case SPI_SCK_DIV4:
-		case SPI_SCK_DIV16:
-		case SPI_SCK_DIV64:
-		case SPI_SCK_DIV128:
-			break; // valid combinations
-
-		default:
-			return SPI_ERR_SPEED_MISMATCH;
-		}
-	}
-
-	return SPI_OK;
-}
 
 // pulls low the ss pin for communication with a slave
-void spi_select(void)
+void spi_select(const uint8_t ss)
 {
-	// TODO; in the future add a slave id so we can pull low on that
-	PORTB &= ~_BV(SPI_SS);
+	PORTB &= ~_BV(ss);
 }
 
 // pulls high the ss pin for slave deselect
-void spi_deselect(void)
+void spi_deselect(const uint8_t ss)
 {
-	// TODO; in the future add a slave id so we can pull high on that
-	PORTB |= _BV(SPI_SS);
+	PORTB |= _BV(ss);
 }
 
 // configures spi mode based on user's cfg
 // returns 0 for successful or non-zero on failure
-uint8_t spi_init(struct spi_cfg_s *cfg)
+uint8_t spi_init(const struct spi_cfg_s *cfg)
 {
-	uint8_t div_idx, res;
-	if (!cfg)
-		return SPI_ERR_NULL_CONFIG;
+	uint8_t spi_cfg;
 
-	if (cfg->mode > 3)
+	spi_cfg = 0;
+	if (!cfg || cfg->mode > SPI_MODE_3)
 		return SPI_ERR_INVALID_MODE;
 
-	if ((res = check_sck(cfg->speed_mode, cfg->sck_div)) != SPI_OK) {
-		SPCR = 0x0;
-		return res;
-	}
+	if ((cfg->sck_div & ALL_DIVS) == 0)
+		return SPI_ERR_SPEED_MISMATCH;
+
+	// toggle spi mode
+	if (cfg->mode & 0x01)
+		spi_cfg |= CPHA_BIT;
+
+	if (cfg->mode & 0x02)
+		spi_cfg |= CPOL_BIT;
 
 	switch (cfg->sck_div) {
 	case SPI_SCK_DIV2:
 	case SPI_SCK_DIV4:
-		div_idx = 0;
+		// these values don't enable or disable any of the SPRx bits so
+		// they're zero
 		break;
 
 	case SPI_SCK_DIV8:
 	case SPI_SCK_DIV16:
-		div_idx = 1;
+		spi_cfg |= SPR0_BIT;
 		break;
 
 	case SPI_SCK_DIV32:
-		div_idx = 2;
+		spi_cfg |= SPR1_BIT;
 		break;
 
 	case SPI_SCK_DIV64:
 		// this is separate for future reference but regardless of 2x
-		// mode, both div64 are the same; they both set the frequency to
+		// spr, both div64 are the same; they both set the frequency to
 		// 250kHz
-		div_idx = 3;
-		break;
-
 	case SPI_SCK_DIV128:
-		div_idx = 3;
+		spi_cfg |= SPR0_SPR1;
 		break;
 
 	default:
-		SPCR = 0x0;
+		// should never get here since check_sck makes sure of that but
+		// some defensive programming never hurt anyone
 		return SPI_ERR_SPEED_MISMATCH;
 	}
 
-	// assign SPCR to one of the values
-	SPCR = spcr_table[div_idx][cfg->mode];
-
-	if (cfg->speed_mode)
+	// we set the speed mode based the clock division
+	// SPI_SCK_DIV64 has same speed for 1x or 2x mode; SPI2X setting ignored
+	if (cfg->sck_div & DOUBLE_SPEED_MASK)
 		SPSR = _BV(SPI2X);
 
 	if (cfg->master) {
 		// set all lines except MISO as output
 		DDRB |= _BV(SPI_MOSI) | _BV(SPI_SCK) | _BV(SPI_SS);
-		PORTB |= _BV(SPI_SS);
+		PORTB |= _BV(SPI_SS) | _BV(SPI_MISO);
+
 		// configure master mode
-		SPCR |= _BV(MSTR);
+		spi_cfg |= _BV(MSTR);
 	} else {
+		// miso is output on slave mode
 		DDRB |= _BV(SPI_MISO);
 	}
 
 	if (cfg->lsb)
-		SPCR |= _BV(DORD);
+		spi_cfg |= _BV(DORD);
 
 	if (cfg->spie)
-		SPCR |= _BV(SPIE);
+		spi_cfg |= _BV(SPIE);
 
 	// enable spi mode
-	SPCR |= _BV(SPE);
+	spi_cfg |= _BV(SPE);
+
+	// assign the final config to the spi config register
+	SPCR = spi_cfg;
 
 	return SPI_OK;
 }

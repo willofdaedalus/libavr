@@ -1,6 +1,7 @@
 #ifndef _SPI_H
 #define _SPI_H
 
+#include <avr/io.h>
 #include <stdint.h>
 
 #define SPI_SS (PB0)
@@ -28,14 +29,20 @@
 #define MODE_COUNT (4)
 #define DIVS_COUNT (4)
 
-#define SPI_ERR_SPEED_MISMATCH (0x01)
-#define SPI_ERR_INVALID_MODE (0x02)
-#define SPI_ERR_NULL_CONFIG (0x03)
+#define SPI_ERR_SPEED_MISMATCH (0xd0)
+#define SPI_ERR_INVALID_MODE (0xd1)
+#define SPI_ERR_NULL_CONFIG (0xd2)
 
 #define SPI_MODE_0 (0)
 #define SPI_MODE_1 (1)
 #define SPI_MODE_2 (2)
 #define SPI_MODE_3 (3)
+
+#define DOUBLE_SPEED_MASK                                                      \
+	(SPI_SCK_DIV2 | SPI_SCK_DIV8 | SPI_SCK_DIV32 | SPI_SCK_DIV64)
+#define ALL_DIVS                                                               \
+	(SPI_SCK_DIV2 | SPI_SCK_DIV4 | SPI_SCK_DIV8 | SPI_SCK_DIV16 |          \
+	 SPI_SCK_DIV32 | SPI_SCK_DIV64 | SPI_SCK_DIV128)
 
 // struct to configure spi
 struct spi_cfg_s {
@@ -47,17 +54,15 @@ struct spi_cfg_s {
 	uint8_t spie;
 	// set mode
 	uint8_t mode;
-	// set 2x mode
-	uint8_t speed_mode;
 	// set data order (lsb or msb)
 	uint8_t lsb;
 };
 
-uint8_t spi_init(struct spi_cfg_s *config);
-uint8_t spi_tx(uint8_t data);
-void spi_send(uint8_t data);
-void spi_deselect(void);
-void spi_select(void);
+uint8_t spi_init(const struct spi_cfg_s *config);
+uint8_t spi_tx(const uint8_t data);
+void spi_send(const uint8_t data);
+void spi_deselect(const uint8_t ss);
+void spi_select(const uint8_t ss);
 
 
 #endif // _SPI_H
