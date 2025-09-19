@@ -37,13 +37,6 @@
 #define SPI_MODE_2 (2)
 #define SPI_MODE_3 (3)
 
-#define DOUBLE_SPEED_MASK                                                      \
-	(SPI_SCK_DIV2 | SPI_SCK_DIV8 | SPI_SCK_DIV32 | SPI_SCK_DIV64)
-
-#define ALL_DIVS                                                               \
-	(SPI_SCK_DIV2 | SPI_SCK_DIV4 | SPI_SCK_DIV8 | SPI_SCK_DIV16 |          \
-	 SPI_SCK_DIV32 | SPI_SCK_DIV64 | SPI_SCK_DIV128)
-
 // struct to configure spi
 struct spi_cfg_s {
 	// freq division value
