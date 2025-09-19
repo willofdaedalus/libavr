@@ -14,7 +14,6 @@
 #define SPR0_SPR1 (1 << SPR0 | 1 << SPR1)
 #define CPHA_BIT (1 << CPHA)
 #define CPOL_BIT (1 << CPOL)
-#define CPOL_CPHA (1 << CPOL | 1 << CPHA)
 
 #define SPI_SCK_DIV2 (2)
 #define SPI_SCK_DIV4 (4)
@@ -40,6 +39,7 @@
 
 #define DOUBLE_SPEED_MASK                                                      \
 	(SPI_SCK_DIV2 | SPI_SCK_DIV8 | SPI_SCK_DIV32 | SPI_SCK_DIV64)
+
 #define ALL_DIVS                                                               \
 	(SPI_SCK_DIV2 | SPI_SCK_DIV4 | SPI_SCK_DIV8 | SPI_SCK_DIV16 |          \
 	 SPI_SCK_DIV32 | SPI_SCK_DIV64 | SPI_SCK_DIV128)

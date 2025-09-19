@@ -22,8 +22,23 @@ uint8_t spi_init(const struct spi_cfg_s *cfg)
 	if (!cfg || cfg->mode > SPI_MODE_3)
 		return SPI_ERR_INVALID_MODE;
 
-	if ((cfg->sck_div & ALL_DIVS) == 0)
+	switch (cfg->sck_div) {
+	case SPI_SCK_DIV2:
+	case SPI_SCK_DIV8:
+	case SPI_SCK_DIV32:
+	case SPI_SCK_DIV64:
+		// set the 2x mode based on the clock divisions
+		SPSR = _BV(SPI2X);
+		break;
+
+	case SPI_SCK_DIV4:
+	case SPI_SCK_DIV16:
+	case SPI_SCK_DIV128:
+		break; // valid
+
+	default:
 		return SPI_ERR_SPEED_MISMATCH;
+	}
 
 	// toggle spi mode
 	if (cfg->mode & 0x01)
@@ -61,11 +76,6 @@ uint8_t spi_init(const struct spi_cfg_s *cfg)
 		// some defensive programming never hurt anyone
 		return SPI_ERR_SPEED_MISMATCH;
 	}
-
-	// we set the speed mode based the clock division
-	// SPI_SCK_DIV64 has same speed for 1x or 2x mode; SPI2X setting ignored
-	if (cfg->sck_div & DOUBLE_SPEED_MASK)
-		SPSR = _BV(SPI2X);
 
 	if (cfg->master) {
 		// set all lines except MISO as output
