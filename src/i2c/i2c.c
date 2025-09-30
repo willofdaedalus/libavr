@@ -1,6 +1,6 @@
 #include "i2c.h"
 
-// initialize the i2c interface
+// initializes the spi interface
 void i2c_init(void)
 {
 	// set scl frequency
@@ -14,7 +14,7 @@ void i2c_init(void)
 	TWCR = _BV(TWEN); // Enable TWI
 }
 
-// send a start condition
+// send a start condition over i2c bus
 void i2c_start(void)
 {
 	// send a start condition
@@ -24,12 +24,20 @@ void i2c_start(void)
 	i2c_wait_twint();
 }
 
-// send a stop condition
+// checks the TWI status register for the status by masking the prescaler bits
+// returns the status of an action with prescaler bits masked
+uint8_t i2c_get_status(void)
+{
+	return TWSR & 0xf8;
+}
+
+// send a start condition over i2c bus
 void i2c_stop(void)
 {
 	TWCR = _BV(TWINT) | _BV(TWSTO) | _BV(TWEN);
 }
 
+// reads a byte of data from the bus expecting an ack
 uint8_t i2c_read_ack(void)
 {
 	TWCR = _BV(TWINT) | _BV(TWEN) | _BV(TWEA);
@@ -38,6 +46,7 @@ uint8_t i2c_read_ack(void)
 	return TWDR;
 }
 
+// reads a byte of data from the bus without expecting an ack
 uint8_t i2c_read_nack(void)
 {
 	TWCR = _BV(TWINT) | _BV(TWEN);
@@ -46,18 +55,21 @@ uint8_t i2c_read_nack(void)
 	return TWDR;
 }
 
-// i2c_wait_twint waits on the TWINT flag to be set;
-// useful for checking if an ack has been received or data has been transmitted
+// waits on the TWINT to be set;
+// useful for waiting on data transfer to complete or ack has been received
 void i2c_wait_twint(void)
 {
 	while (!(TWCR & _BV(TWINT)))
 		;
 }
 
+// addresses a slave at address "sla" with a r/w bit from "rw"
+// returns 0 for success and non-zero for error
 uint8_t i2c_sla_tx(uint8_t sla, uint8_t rw)
 {
 	// i2c slave addresses are 7-bits; any longer and that's an issue
-	if (sla > 0x7f || sla == 0)
+	// that means the max we can support is 127 leaving 1-bit for rw
+	if (sla > 0x7f)
 		return I2C_ERR_BAD_SLA;
 
 	if (rw > 1)
@@ -73,7 +85,7 @@ uint8_t i2c_sla_tx(uint8_t sla, uint8_t rw)
 	return I2C_OK;
 }
 
-// send data to the peripheral in address
+// send data to a previously selected address
 void i2c_send_data(uint8_t data)
 {
 	TWDR = data;
