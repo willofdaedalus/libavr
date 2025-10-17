@@ -3,16 +3,23 @@
 // initializes the spi interface
 void i2c_init(void)
 {
-	// set scl frequency
-	// FOR 100KHZ I2C WITH F_CPU = 16MHz:
-	// 100000 = 16000000 / (16 + 2 * TWBR * 1)
-	// twbr = 72
-
-	TWSR = 0; // Prescaler = 1 (bits 0-1 are prescaler, clear them)
-	TWBR = ((F_CPU / 100000UL) - 16) / 2; // For 100kHz
-
-	TWCR = _BV(TWEN); // Enable TWI
+	TWSR = 0;
+	// Try 50kHz instead of 100kHz (or even 25kHz)
+	TWBR = ((F_CPU / 50000UL) - 16) / 2;
+	TWCR = _BV(TWEN);
 }
+// void i2c_init(void)
+// {
+// 	// set scl frequency
+// 	// FOR 100KHZ I2C WITH F_CPU = 16MHz:
+// 	// 100000 = 16000000 / (16 + 2 * TWBR * 1)
+// 	// twbr = 72
+//
+// 	TWSR = 0; // Prescaler = 1 (bits 0-1 are prescaler, clear them)
+// 	TWBR = ((F_CPU / 100000UL) - 16) / 2; // For 100kHz
+//
+// 	TWCR = _BV(TWEN); // Enable TWI
+// }
 
 // send a start condition over i2c bus
 void i2c_start(void)
@@ -69,15 +76,14 @@ uint8_t i2c_sla_tx(uint8_t sla, uint8_t rw)
 {
 	// i2c slave addresses are 7-bits; any longer and that's an issue
 	// that means the max we can support is 127 leaving 1-bit for rw
-	if (sla > 0x7f)
+	if (sla > 127)
 		return I2C_ERR_BAD_SLA;
 
 	if (rw > 1)
 		return I2C_ERR_BAD_RW;
 
 	// shift the bits to the left by 1 and append the rw
-	sla = (sla << 1) | rw;
-	TWDR = sla;
+	TWDR = (sla << 1) | rw;
 	TWCR = _BV(TWINT) | _BV(TWEN);
 
 	i2c_wait_twint();
@@ -92,4 +98,20 @@ void i2c_send_data(uint8_t data)
 	TWCR = _BV(TWINT) | _BV(TWEN);
 
 	i2c_wait_twint();
+}
+
+// sets an address for device and returns 0 for sucess and non-zero for failure
+uint8_t i2c_set_address(uint8_t addr)
+{
+	if (addr > 127) {
+		return I2C_ERR_BAD_SLA;
+	}
+
+	// we only need the first 7 bits
+	TWAR = (addr << 1);
+	// setting TWEA allows the devices to be included in all actions of the
+	// i2c bus
+	TWCR = _BV(TWEA) | _BV(TWEN) | _BV(TWIE);
+
+	return I2C_OK;
 }
