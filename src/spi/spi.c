@@ -22,24 +22,6 @@ uint8_t spi_init(const struct spi_cfg_s *cfg)
 	if (!cfg || cfg->mode > SPI_MODE_3)
 		return SPI_ERR_INVALID_MODE;
 
-	switch (cfg->sck_div) {
-	case SPI_SCK_DIV2:
-	case SPI_SCK_DIV8:
-	case SPI_SCK_DIV32:
-	case SPI_SCK_DIV64:
-		// set the 2x mode based on the clock divisions
-		SPSR = _BV(SPI2X);
-		break;
-
-	case SPI_SCK_DIV4:
-	case SPI_SCK_DIV16:
-	case SPI_SCK_DIV128:
-		break; // valid
-
-	default:
-		return SPI_ERR_SPEED_MISMATCH;
-	}
-
 	// toggle spi mode
 	if (cfg->mode & 0x01)
 		spi_cfg |= CPHA_BIT;
@@ -47,37 +29,44 @@ uint8_t spi_init(const struct spi_cfg_s *cfg)
 	if (cfg->mode & 0x02)
 		spi_cfg |= CPOL_BIT;
 
-	switch (cfg->sck_div) {
-	case SPI_SCK_DIV2:
-	case SPI_SCK_DIV4:
-		// these values don't enable or disable any of the SPRx bits so
-		// they're zero
-		break;
-
-	case SPI_SCK_DIV8:
-	case SPI_SCK_DIV16:
-		spi_cfg |= SPR0_BIT;
-		break;
-
-	case SPI_SCK_DIV32:
-		spi_cfg |= SPR1_BIT;
-		break;
-
-	case SPI_SCK_DIV64:
-		// this is separate for future reference but regardless of 2x
-		// spr, both div64 are the same; they both set the frequency to
-		// 250kHz
-	case SPI_SCK_DIV128:
-		spi_cfg |= SPR0_SPR1;
-		break;
-
-	default:
-		// should never get here since check_sck makes sure of that but
-		// some defensive programming never hurt anyone
-		return SPI_ERR_SPEED_MISMATCH;
-	}
-
 	if (cfg->master) {
+		switch (cfg->sck_div) {
+		case SPI_SCK_DIV2:
+			SPSR = _BV(SPI2X);
+			__attribute__((fallthrough));
+		case SPI_SCK_DIV4:
+			// these values don't enable or disable any of the SPRx
+			// bits so they're zero
+			break;
+
+		case SPI_SCK_DIV8:
+			SPSR = _BV(SPI2X);
+			__attribute__((fallthrough));
+		case SPI_SCK_DIV16:
+			spi_cfg |= SPR0_BIT;
+			break;
+
+		case SPI_SCK_DIV32:
+			spi_cfg |= SPR1_BIT;
+			SPSR = _BV(SPI2X);
+			break;
+
+		case SPI_SCK_DIV64:
+			SPSR = _BV(SPI2X);
+			__attribute__((fallthrough));
+			// this is separate for future reference but regardless
+			// of 2x spr, both div64 are the same; they both set the
+			// frequency to 250kHz
+		case SPI_SCK_DIV128:
+			spi_cfg |= SPR0_SPR1;
+			break;
+
+		default:
+			// should never get here since check_sck makes sure of
+			// that but some defensive programming never hurt anyone
+			return SPI_ERR_SPEED_MISMATCH;
+		}
+
 		// set all lines except MISO as output
 		DDRB |= _BV(SPI_MOSI) | _BV(SPI_SCK) | _BV(SPI_SS);
 		PORTB |= _BV(SPI_SS) | _BV(SPI_MISO);
